@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Agent {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("agent")
+  deals     Deal[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Deal {
+  id             String    @id @default(uuid())
+  agentId        String
+  agent          Agent     @relation(fields: [agentId], references: [id])
+  client         String
+  phone          String
+  product        String
+  totalAmount    Float
+  monthlyAmount  Float
+  months         Int
+  paidMonths     Int       @default(0)
+  startDate      String
+  status         String    @default("active") // active, completed, default
+  comment        String?
+  referralName   String?
+  referralPhone  String?
+  referralRelation String?
+  costPrice      Float?
+  downPayment    Float?
+  payments       Payment[]
+  cashboxTransactions CashboxTransaction[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Payment {
+  id              String   @id @default(uuid())
+  dealId          String
+  deal            Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  monthNumber     Int
+  amount          Float
+  principalAmount Float    @default(0)
+  profitAmount    Float    @default(0)
+  dueDate         String
+  paidDate        String?
+  extendedDate    String?
+  status          String   @default("pending") // pending, paid, overdue, extended
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model CashboxTransaction {
+  id        String   @id @default(uuid())
+  agentId   String?
+  type      String   // "income" or "expense"
+  amount    Float
+  category  String   // "capital", "down_payment", "payment", "cost_price", "salary", "tax", "other"
+  reason    String
+  dealId    String?
+  deal      Deal?    @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  date      String   // YYYY-MM-DD
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
