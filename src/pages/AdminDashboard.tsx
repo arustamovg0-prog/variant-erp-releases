@@ -29,6 +29,9 @@ export default function AdminDashboard() {
   const { t, language } = useLanguage();
   const [rateInput, setRateInput] = useState(String(state.uzsRate));
   const [savedRate, setSavedRate] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<{type: 'success'|'error', text: string} | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<any | null>(null);
+  const [confirmImport, setConfirmImport] = useState(false);
 
   // Cashbox category settings
   const DEFAULT_CATEGORIES = [
