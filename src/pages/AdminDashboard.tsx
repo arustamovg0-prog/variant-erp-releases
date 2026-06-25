@@ -333,10 +333,13 @@ export default function AdminDashboard() {
                                 if (newPass && newPass.trim()) {
                                   if (window.api?.updateAgentPassword) {
                                     const res = await window.api.updateAgentPassword(agent.id, newPass.trim());
-                                    if (res.success) setStatusMsg({ type: 'success', text: language === 'ru' ? '✓ Пароль изменен' : '✓ Parol o\'zgartirildi' });
-        setTimeout(() => setStatusMsg(null), 4000);
-                                    else setStatusMsg({ type: 'error', text: res.error });
-        setTimeout(() => setStatusMsg(null), 4000);
+                                    if (res.success) {
+                                      setStatusMsg({ type: 'success', text: language === 'ru' ? '✓ Пароль изменен' : '✓ Parol o\'zgartirildi' });
+                                      setTimeout(() => setStatusMsg(null), 4000);
+                                    } else {
+                                      setStatusMsg({ type: 'error', text: res.error });
+                                      setTimeout(() => setStatusMsg(null), 4000);
+                                    }
                                   }
                                 }
                               }}>
