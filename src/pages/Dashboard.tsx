@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useApp } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
 import { useLanguage } from '@/lib/language';
-import { formatAmount, formatAmountUZS, formatPercent, calculateRemaining } from '@/lib/calculations';
+import { formatAmount, formatAmountUZSWithRate, formatPercent, calculateRemaining } from '@/lib/calculations';
 import KPICard from '@/components/shared/KPICard';
 import PaymentCard from '@/components/shared/PaymentCard';
 import StatusBadge from '@/components/shared/StatusBadge';
@@ -19,9 +19,9 @@ import {
 } from 'lucide-react';
 
 export default function Dashboard() {
+  const { getKPIStats, getOverduePayments, getUpcomingPayments, getAgentDeals, state } = useApp();
   const { agent } = useAuth();
   const { t, language } = useLanguage();
-  const { getKPIStats, getOverduePayments, getUpcomingPayments, getAgentDeals, state } = useApp();
   const [selectedDealId, setSelectedDealId] = useState<string | null>(null);
 
   if (!agent) return null;
@@ -66,7 +66,7 @@ export default function Dashboard() {
         <KPICard
           label={t('db.portfolio_amount')}
           value={formatAmount(kpi.portfolioAmount)}
-          subtitle={formatAmountUZS(kpi.portfolioAmount)}
+          subtitle={formatAmountUZSWithRate(kpi.portfolioAmount, state.uzsRate)}
           icon={<DollarSign size={20} />}
           accentColor="var(--color-info)"
         />

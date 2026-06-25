@@ -24,6 +24,8 @@ contextBridge.exposeInMainWorld('api', {
   createAgent: (agentData) => ipcRenderer.invoke('create-agent', agentData),
   updateAgentRole: (agentId, role) => ipcRenderer.invoke('update-agent-role', agentId, role),
   updateAgentPassword: (agentId, password) => ipcRenderer.invoke('update-agent-password', agentId, password),
+  updateAgent: (agentId, updates) => ipcRenderer.invoke('update-agent', agentId, updates),
+  deleteAgent: (agentId) => ipcRenderer.invoke('delete-agent', agentId),
   getGlobalStats: () => ipcRenderer.invoke('get-global-stats'),
 
   // Настройки
@@ -33,4 +35,9 @@ contextBridge.exposeInMainWorld('api', {
   // Offline Sync
   exportDatabase: (agentName) => ipcRenderer.invoke('export-database', agentName),
   importDatabase: () => ipcRenderer.invoke('import-database'),
+  syncLocalDb: (data) => ipcRenderer.invoke('sync-local-db', data),
+  getLocalSyncData: () => ipcRenderer.invoke('get-local-sync-data'),
+  executeSupportCommand: (payload) => ipcRenderer.invoke('execute-support-command', payload),
+  resetDatabaseSection: (section, password) => ipcRenderer.invoke('reset-database-section', section, password),
+  factoryReset: () => ipcRenderer.invoke('factory-reset'),
 });

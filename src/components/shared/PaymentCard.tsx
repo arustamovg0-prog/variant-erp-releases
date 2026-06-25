@@ -1,7 +1,7 @@
 import type { Payment } from '@/types';
 import { useApp } from '@/lib/store';
 import { useLanguage } from '@/lib/language';
-import { formatAmount, formatAmountUZS, formatDate } from '@/lib/calculations';
+import { formatAmount, formatAmountUZSWithRate, formatDate } from '@/lib/calculations';
 import StatusBadge from './StatusBadge';
 import { User, Calendar, AlertTriangle, CalendarClock } from 'lucide-react';
 
@@ -14,7 +14,7 @@ interface PaymentCardProps {
 }
 
 export default function PaymentCard({ payment, onClick, onClientClick, onExtendPayment, compact }: PaymentCardProps) {
-  const { getDealById } = useApp();
+  const { state, getDealById } = useApp();
   const { language } = useLanguage();
   const deal = getDealById(payment.dealId);
 
@@ -116,7 +116,7 @@ export default function PaymentCard({ payment, onClick, onClientClick, onExtendP
             {formatAmount(payment.amount)}
           </span>
           <span style={{ fontSize: '0.6875rem', color: 'var(--foreground-muted)' }}>
-            {formatAmountUZS(payment.amount)}
+            {formatAmountUZSWithRate(payment.amount, state.uzsRate)}
           </span>
         </span>
       </div>

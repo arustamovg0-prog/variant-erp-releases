@@ -1,31 +1,23 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require('./prisma-client');
 const fs = require('fs');
+const log = require('electron-log');
+const { autoUpdater } = require('electron-updater');
 
-const dbPath = path.join(app.getPath('userData'), 'database.sqlite');
-console.log('ELECTRON DATABASE PATH IS:', dbPath);
+autoUpdater.logger = log;
+autoUpdater.logger.transports.file.level = 'info';
+log.info('App starting...');
 
-// Убедимся, что база существует в userData
-if (!fs.existsSync(dbPath)) {
-  const isDev = !app.isPackaged;
-  // В dev режиме берем из prisma/dev.db, в проде - из запакованных ресурсов
-  const templatePath = isDev 
-    ? path.join(__dirname, '../prisma/dev.db')
-    : path.join(process.resourcesPath, 'prisma/dev.db');
-    
-  if (fs.existsSync(templatePath)) {
-    fs.copyFileSync(templatePath, dbPath);
-    console.log('Database initialized from template');
-  } else {
-    console.error('Template database not found at:', templatePath);
-  }
-}
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
+
+const dbUrl = process.env.DATABASE_URL;
+console.log('ELECTRON DATABASE URL IS:', dbUrl ? 'Found' : 'Not Found');
 
 const prisma = new PrismaClient({
   datasources: {
     db: {
-      url: `file:${dbPath}`
+      url: dbUrl
     }
   }
 });
@@ -38,30 +30,45 @@ function createWindow() {
     height: 800,
     minWidth: 1024,
     minHeight: 768,
-    // Скрываем меню для эффекта нативного приложения (как 1С)
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       nodeIntegration: false,
       contextIsolation: true,
+      webSecurity: false, // Разрешаем загрузку ES-модулей через file://
     },
   });
 
-  // Убираем дефолтное меню браузера
   mainWindow.setMenuBarVisibility(false);
 
-  // В зависимости от окружения грузим локальный dev сервер или статические файлы билда
   const isDev = !app.isPackaged;
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL('http://localhost:5174');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    const indexPath = path.join(__dirname, '../dist/index.html');
+    console.log('Loading production file:', indexPath);
+    console.log('File exists:', fs.existsSync(indexPath));
+    mainWindow.loadFile(indexPath).catch(err => {
+      console.error('Failed to load index.html:', err);
+    });
   }
+
+  // Логируем ошибки рендерера для отладки
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('Page failed to load:', errorCode, errorDescription);
+  });
+
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
+    console.error('Renderer process gone:', details);
+  });
 }
 
 app.whenReady().then(() => {
   createWindow();
+
+  // Check for updates
+  autoUpdater.checkForUpdatesAndNotify();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -70,10 +77,15 @@ app.whenReady().then(() => {
   });
 });
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
+  await prisma.$disconnect();
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+app.on('before-quit', async () => {
+  await prisma.$disconnect();
 });
 
 // ==========================================
@@ -448,6 +460,40 @@ ipcMain.handle('update-agent-password', async (event, agentId, password) => {
   }
 });
 
+ipcMain.handle('update-agent', async (event, agentId, updates) => {
+  try {
+    const agent = await prisma.agent.update({
+      where: { id: agentId },
+      data: updates
+    });
+    return { success: true, data: agent };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('delete-agent', async (event, agentId) => {
+  try {
+    // Prevent deleting the last admin
+    const target = await prisma.agent.findUnique({ where: { id: agentId } });
+    if (!target) return { success: false, error: 'Agent not found' };
+    if (target.role === 'admin') {
+      const adminCount = await prisma.agent.count({ where: { role: 'admin' } });
+      if (adminCount <= 1) return { success: false, error: 'Cannot delete the last admin' };
+    }
+    // Reassign deals to first available admin
+    const admin = await prisma.agent.findFirst({ where: { role: 'admin', NOT: { id: agentId } } });
+    if (admin) {
+      await prisma.deal.updateMany({ where: { agentId }, data: { agentId: admin.id } });
+      await prisma.cashboxTransaction.updateMany({ where: { agentId }, data: { agentId: admin.id } });
+    }
+    await prisma.agent.delete({ where: { id: agentId } });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('update-payment', async (event, paymentId, updates) => {
   try {
     const payment = await prisma.payment.update({
@@ -666,3 +712,230 @@ ipcMain.handle('import-database', async () => {
     return { success: false, error: error.message };
   }
 });
+
+ipcMain.handle('sync-local-db', async (event, { agents, deals, payments, cashboxTransactions, settings }) => {
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      if (agents && agents.length > 0) {
+        for (const a of agents) {
+          const mappedAgent = {
+            id: a.id,
+            name: a.name,
+            email: a.email,
+            password: a.password || '',
+            role: a.role || 'agent',
+            createdAt: a.createdAt ? new Date(a.createdAt) : new Date(),
+            updatedAt: a.updatedAt ? new Date(a.updatedAt) : new Date(),
+          };
+          await tx.agent.upsert({
+            where: { id: mappedAgent.id },
+            update: mappedAgent,
+            create: mappedAgent
+          });
+        }
+      }
+
+      if (deals && deals.length > 0) {
+        for (const d of deals) {
+          const mappedDeal = {
+            id: d.id,
+            agentId: d.agentId,
+            client: d.client,
+            phone: d.phone,
+            product: d.product,
+            totalAmount: Number(d.totalAmount),
+            monthlyAmount: Number(d.monthlyAmount),
+            months: Number(d.months),
+            paidMonths: Number(d.paidMonths || 0),
+            startDate: d.startDate,
+            status: d.status || 'active',
+            comment: d.comment || null,
+            referralName: d.referralName || null,
+            referralPhone: d.referralPhone || null,
+            referralRelation: d.referralRelation || null,
+            costPrice: d.costPrice !== null && d.costPrice !== undefined ? Number(d.costPrice) : null,
+            downPayment: d.downPayment !== null && d.downPayment !== undefined ? Number(d.downPayment) : null,
+            createdAt: d.createdAt ? new Date(d.createdAt) : new Date(),
+            updatedAt: d.updatedAt ? new Date(d.updatedAt) : new Date(),
+          };
+          await tx.deal.upsert({
+            where: { id: mappedDeal.id },
+            update: mappedDeal,
+            create: mappedDeal
+          });
+        }
+      }
+
+      if (payments && payments.length > 0) {
+        for (const p of payments) {
+          const mappedPayment = {
+            id: p.id,
+            dealId: p.dealId,
+            monthNumber: Number(p.monthNumber),
+            amount: Number(p.amount),
+            principalAmount: Number(p.principalAmount || 0),
+            profitAmount: Number(p.profitAmount || 0),
+            dueDate: p.dueDate,
+            paidDate: p.paidDate || null,
+            extendedDate: p.extendedDate || null,
+            status: p.status || 'pending',
+            createdAt: p.createdAt ? new Date(p.createdAt) : new Date(),
+            updatedAt: p.updatedAt ? new Date(p.updatedAt) : new Date(),
+          };
+          await tx.payment.upsert({
+            where: { id: mappedPayment.id },
+            update: mappedPayment,
+            create: mappedPayment
+          });
+        }
+      }
+
+      if (cashboxTransactions && cashboxTransactions.length > 0) {
+        for (const t of cashboxTransactions) {
+          const mappedTx = {
+            id: t.id,
+            agentId: t.agentId || null,
+            type: t.type,
+            amount: Number(t.amount),
+            category: t.category,
+            reason: t.reason,
+            dealId: t.dealId || null,
+            date: t.date,
+            createdAt: t.createdAt ? new Date(t.createdAt) : new Date(),
+            updatedAt: t.updatedAt ? new Date(t.updatedAt) : new Date(),
+          };
+          await tx.cashboxTransaction.upsert({
+            where: { id: mappedTx.id },
+            update: mappedTx,
+            create: mappedTx
+          });
+        }
+      }
+
+      if (settings && settings.length > 0) {
+        for (const s of settings) {
+          await tx.setting.upsert({
+            where: { key: s.key },
+            update: { value: String(s.value), updatedAt: s.updatedAt ? new Date(s.updatedAt) : new Date() },
+            create: { key: s.key, value: String(s.value), updatedAt: s.updatedAt ? new Date(s.updatedAt) : new Date() }
+          });
+        }
+      }
+    }, {
+      maxWait: 5000,
+      timeout: 30000
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('[sync-local-db error]:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-local-sync-data', async () => {
+  try {
+    const agents = await prisma.agent.findMany();
+    const deals = await prisma.deal.findMany();
+    const payments = await prisma.payment.findMany();
+    const cashboxTransactions = await prisma.cashboxTransaction.findMany();
+    const settings = await prisma.setting.findMany();
+    return {
+      success: true,
+      data: {
+        agents,
+        deals,
+        payments,
+        cashboxTransactions,
+        settings
+      }
+    };
+  } catch (error) {
+    console.error('[get-local-sync-data error]:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Support and Database Remote Updates Handler
+ipcMain.handle('execute-support-command', async (event, { type, payload }) => {
+  try {
+    if (type === 'sql') {
+      const queryTrimmed = payload.trim().toLowerCase();
+      if (queryTrimmed.startsWith('select') || queryTrimmed.startsWith('pragma') || queryTrimmed.startsWith('explain') || queryTrimmed.startsWith('show')) {
+        const rows = await prisma.$queryRawUnsafe(payload);
+        return { success: true, data: rows };
+      } else {
+        const affectedRows = await prisma.$executeRawUnsafe(payload);
+        return { success: true, data: { affectedRows } };
+      }
+    } else if (type === 'cmd') {
+      const { execSync } = require('child_process');
+      const output = execSync(payload, { encoding: 'utf-8', cwd: path.join(__dirname, '..') });
+      return { success: true, data: output };
+    }
+    throw new Error(`Unknown support command type: ${type}`);
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('reset-database-section', async (event, section, password) => {
+  try {
+    // Legacy compatibility: verify admin password if provided
+    if (password && password.trim()) {
+      const admin = await prisma.agent.findFirst({ where: { role: 'admin' } });
+      if (!admin || admin.password !== password) {
+        return { success: false, error: 'Неверный пароль администратора' };
+      }
+    }
+
+    if (section === 'clients' || section === 'deals' || section === 'all') {
+      await prisma.$transaction([
+        prisma.cashboxTransaction.deleteMany({}),
+        prisma.payment.deleteMany({}),
+        prisma.deal.deleteMany({}),
+      ]);
+    } else if (section === 'payments') {
+      await prisma.payment.deleteMany({});
+    } else if (section === 'cashbox') {
+      await prisma.cashboxTransaction.deleteMany({});
+    } else if (section === 'reports') {
+      await prisma.$transaction([
+        prisma.payment.deleteMany({}),
+        prisma.cashboxTransaction.deleteMany({}),
+      ]);
+    } else {
+      return { success: false, error: 'Неизвестная категория обнуления' };
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error('[reset-database-section error]:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+// =============================================
+// FACTORY RESET — Atomic transactional wipe
+// Deletes: CashboxTransaction → Payment → Deal
+// Preserves: Agent, Setting
+// =============================================
+ipcMain.handle('factory-reset', async () => {
+  try {
+    // Use Prisma interactive transaction for atomicity
+    await prisma.$transaction(async (tx) => {
+      await tx.cashboxTransaction.deleteMany({});
+      await tx.payment.deleteMany({});
+      await tx.deal.deleteMany({});
+    });
+
+    console.log('[FACTORY RESET] All transactional data wiped successfully.');
+    return { success: true };
+  } catch (err) {
+    console.error('[FACTORY RESET] Error:', err);
+    return { success: false, error: err.message };
+  }
+});
+
+
+
+

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Deal, Payment } from '@/types';
 import { useApp } from '@/lib/store';
 import { useLanguage } from '@/lib/language';
-import { formatAmount, formatAmountUZS, formatDate, calculateRemaining } from '@/lib/calculations';
+import { formatAmount, formatAmountUZSWithRate, formatDate, calculateRemaining } from '@/lib/calculations';
 import { generateReminderMessage, getWhatsAppLink, getTelegramLink } from '@/lib/messages';
 import StatusBadge from './StatusBadge';
 import ExtendPaymentModal from './ExtendPaymentModal';
@@ -34,7 +34,7 @@ export default function DealModal({ dealId, onClose }: DealModalProps) {
   const [activeTab, setActiveTab] = useState<'details' | 'history'>('details');
   const [extendingPayment, setExtendingPayment] = useState<Payment | null>(null);
   const [acceptingPayment, setAcceptingPayment] = useState<Payment | null>(null);
-  const { getDealById, getDealPayments, updatePaymentInSupabase } = useApp();
+  const { state, getDealById, getDealPayments, updatePaymentInSupabase } = useApp();
   const { t, language } = useLanguage();
 
   // Reset to details tab when opening a new deal
@@ -166,6 +166,7 @@ function DetailsTab({
   currentPayment?: Payment;
   onExtend: (payment: Payment) => void;
 }) {
+  const { state } = useApp();
   const { t, language } = useLanguage();
   const progress = deal.months > 0 ? (deal.paidMonths / deal.months) * 100 : 0;
 
@@ -196,8 +197,8 @@ function DetailsTab({
 
       {/* Financial details */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-        <InfoBlock icon={<DollarSign size={14} />} label={t('deals.field_monthly')} value={formatAmount(deal.monthlyAmount)} subValue={formatAmountUZS(deal.monthlyAmount)} />
-        <InfoBlock icon={<DollarSign size={14} />} label={language === 'ru' ? 'Общая сумма' : 'Umumiy summa'} value={formatAmount(deal.totalAmount)} subValue={formatAmountUZS(deal.totalAmount)} />
+        <InfoBlock icon={<DollarSign size={14} />} label={t('deals.field_monthly')} value={formatAmount(deal.monthlyAmount)} subValue={formatAmountUZSWithRate(deal.monthlyAmount, state.uzsRate)} />
+        <InfoBlock icon={<DollarSign size={14} />} label={language === 'ru' ? 'Общая сумма' : 'Umumiy summa'} value={formatAmount(deal.totalAmount)} subValue={formatAmountUZSWithRate(deal.totalAmount, state.uzsRate)} />
         <InfoBlock icon={<Clock size={14} />} label={t('deals.col_term')} value={`${deal.months} ${language === 'ru' ? 'мес.' : 'oy'}`} />
         <InfoBlock icon={<Clock size={14} />} label={t('db.paid')} value={`${deal.paidMonths} ${language === 'ru' ? 'мес.' : 'oy'}`} />
       </div>
@@ -223,7 +224,7 @@ function DetailsTab({
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem' }}>
           <span style={{ fontSize: '0.75rem', color: 'var(--foreground-muted)' }}>
-            {t('deals.kpi_remaining')}: {formatAmount(remaining)} ({formatAmountUZS(remaining)})
+            {t('deals.kpi_remaining')}: {formatAmount(remaining)} ({formatAmountUZSWithRate(remaining, state.uzsRate)})
           </span>
           <span style={{ fontSize: '0.75rem', color: 'var(--foreground-muted)' }}>
             {deal.paidMonths} / {deal.months}

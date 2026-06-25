@@ -15,6 +15,7 @@ import AdminDashboard from '@/pages/AdminDashboard';
 
 import { ThemeProvider } from '@/lib/theme';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
+import { SyncProvider } from '@/lib/sync';
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -73,12 +74,15 @@ export default function App() {
       <LanguageProvider>
         <AuthProvider>
           <AppProvider>
-            <ErrorBoundary>
-              <AppContent />
-            </ErrorBoundary>
+            <SyncProvider>
+              <ErrorBoundary>
+                <AppContent />
+              </ErrorBoundary>
+            </SyncProvider>
           </AppProvider>
         </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>
   );
 }
+

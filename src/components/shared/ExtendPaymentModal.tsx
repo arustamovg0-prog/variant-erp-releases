@@ -88,12 +88,22 @@ export default function ExtendPaymentModal({ payment, onClose }: ExtendPaymentMo
                   className="input-field"
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
+                  onClick={(e) => {
+                    try {
+                      if ('showPicker' in e.currentTarget) {
+                        (e.currentTarget as HTMLInputElement).showPicker();
+                      }
+                    } catch (err) {
+                      // showPicker might throw if not triggered by user interaction, but onClick is.
+                    }
+                  }}
                   min={currentDueDate}
                   required
                   style={{
                     colorScheme: 'dark', /* Helps native date picker blend with dark theme */
                     padding: '0.75rem',
-                    fontSize: '1rem'
+                    fontSize: '1rem',
+                    cursor: 'pointer'
                   }}
                 />
               </div>

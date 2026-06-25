@@ -295,14 +295,28 @@ export default function Reports() {
                 <Calendar size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '0.25rem' }} />
                 {language === 'ru' ? 'Дата начала' : 'Boshlanish sanasi'}
               </label>
-              <input className="input-field" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ width: '180px' }} />
+              <input 
+                className="input-field" 
+                type="date" 
+                value={startDate} 
+                onChange={e => setStartDate(e.target.value)} 
+                onClick={(e) => { try { if ('showPicker' in e.currentTarget) (e.currentTarget as HTMLInputElement).showPicker(); } catch(err){} }}
+                style={{ width: '180px', cursor: 'pointer' }} 
+              />
             </div>
             <div>
               <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground-muted)', display: 'block', marginBottom: '0.375rem' }}>
                 <Calendar size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '0.25rem' }} />
                 {language === 'ru' ? 'Дата окончания' : 'Tugash sanasi'}
               </label>
-              <input className="input-field" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} style={{ width: '180px' }} />
+              <input 
+                className="input-field" 
+                type="date" 
+                value={endDate} 
+                onChange={e => setEndDate(e.target.value)} 
+                onClick={(e) => { try { if ('showPicker' in e.currentTarget) (e.currentTarget as HTMLInputElement).showPicker(); } catch(err){} }}
+                style={{ width: '180px', cursor: 'pointer' }} 
+              />
             </div>
             <div style={{ flex: 1 }} />
             <button className="btn-primary" onClick={handleExportExcel}>

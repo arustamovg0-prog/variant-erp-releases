@@ -261,6 +261,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       await refreshData(true);
+      window.dispatchEvent(new CustomEvent('trigger-db-sync'));
       return { success: true };
     } catch (err: any) {
       return { success: false, error: err.message };
@@ -295,6 +296,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       // Force refresh all state values silently from database source of truth
       await refreshData(true);
+      window.dispatchEvent(new CustomEvent('trigger-db-sync'));
     } catch (err) {
       console.error('Error updating payment:', err);
       throw err;
@@ -306,6 +308,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       await window.api.updateSetting('uzs_rate', rate);
     }
     dispatch({ type: 'SET_UZS_RATE', rate });
+    window.dispatchEvent(new CustomEvent('trigger-db-sync'));
   };
 
   const addCashboxTransaction = async (transaction: Omit<CashboxTransaction, 'id' | 'createdAt' | 'updatedAt'>) => {
@@ -315,6 +318,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (res.success && res.data) {
           const mapped = { ...res.data, amount: Number(res.data.amount) };
           dispatch({ type: 'ADD_CASHBOX_TRANSACTION', transaction: mapped });
+          window.dispatchEvent(new CustomEvent('trigger-db-sync'));
           return { success: true };
         }
         return { success: false, error: res.error };

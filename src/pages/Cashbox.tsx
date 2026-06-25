@@ -34,6 +34,14 @@ export default function Cashbox() {
   const [filterAgent, setFilterAgent] = useState<string>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [filterType, setFilterType] = useState<string>('all');
+
+  // Dynamic cashbox categories loaded from admin settings
+  const [dynamicCategories, setDynamicCategories] = useState<{key:string;ru:string;uz:string}[]>([
+    { key: 'capital', ru: 'Капитал (Ввод/вывод средств)', uz: 'Kapital operatsiyalari' },
+    { key: 'salary', ru: 'Выдача зарплаты', uz: 'Oylik berish' },
+    { key: 'tax', ru: 'Налоги / Оплаты', uz: 'Soliq / Boj' },
+    { key: 'other', ru: 'Прочее', uz: 'Boshqa' },
+  ]);
   
   // Rate edit state
   const [rateInput, setRateInput] = useState<string>(String(state.uzsRate));
@@ -48,7 +56,7 @@ export default function Cashbox() {
   const [txAgentId, setTxAgentId] = useState<string>(agent?.role === 'admin' ? 'admin' : agent?.id || '');
   const [isSubmittingTx, setIsSubmittingTx] = useState<boolean>(false);
 
-  // Load agents if admin
+  // Load agents and dynamic categories
   useEffect(() => {
     async function loadAgents() {
       if (agent?.role === 'admin' && window.api?.getAllAgents) {
@@ -58,7 +66,19 @@ export default function Cashbox() {
         }
       }
     }
+    async function loadCategories() {
+      if (window.api?.getSettings) {
+        const res = await window.api.getSettings();
+        if (res.success && res.data?.cashbox_categories) {
+          try {
+            const parsed = JSON.parse(res.data.cashbox_categories);
+            if (Array.isArray(parsed) && parsed.length > 0) setDynamicCategories(parsed);
+          } catch {}
+        }
+      }
+    }
     loadAgents();
+    loadCategories();
   }, [agent]);
 
   // Keep rate input in sync with store
@@ -116,8 +136,10 @@ export default function Cashbox() {
       setTxAmount('');
       setTxReason('');
       alert(language === 'ru' ? 'Транзакция успешно записана!' : 'Tranzaksiya muvaffaqiyatli yozildi!');
+      setTimeout(() => { window.focus(); document.body.focus(); }, 50);
     } else {
       alert((language === 'ru' ? 'Ошибка: ' : 'Xato: ') + res.error);
+      setTimeout(() => { window.focus(); document.body.focus(); }, 50);
     }
   };
 
@@ -241,16 +263,18 @@ export default function Cashbox() {
     };
   }, [transactions, agentsList, agent]);
 
-  // Categories helper names
-  const categoryNames: Record<string, string> = {
-    capital: language === 'ru' ? 'Капитал / Ввод средств' : 'Kapital kiritish',
-    down_payment: language === 'ru' ? 'Первоначальный взнос' : 'Boshlang\'ich to\'lov',
-    payment: language === 'ru' ? 'Ежемесячный платёж' : 'Oylik to\'lov',
-    cost_price: language === 'ru' ? 'Себестоимость товара' : 'Mahsulot tannarxi',
-    salary: language === 'ru' ? 'Выдача зарплаты' : 'Oylik berish',
-    tax: language === 'ru' ? 'Налоги / Сборы' : 'Soliq / Boj',
-    other: language === 'ru' ? 'Прочее' : 'Boshqa',
-  };
+  // Categories helper names — merge system + dynamic
+  const categoryNames: Record<string, string> = useMemo(() => {
+    const base: Record<string, string> = {
+      down_payment: language === 'ru' ? 'Первоначальный взнос' : 'Boshlang\'ich to\'lov',
+      payment: language === 'ru' ? 'Ежемесячный платёж' : 'Oylik to\'lov',
+      cost_price: language === 'ru' ? 'Себестоимость товара' : 'Mahsulot tannarxi',
+    };
+    for (const cat of dynamicCategories) {
+      base[cat.key] = language === 'ru' ? cat.ru : cat.uz;
+    }
+    return base;
+  }, [dynamicCategories, language]);
 
   const getAgentLabel = (agentId?: string | null) => {
     if (agentId === null || agentId === undefined) return language === 'ru' ? 'Офис / Сейф' : 'Ofis / Seyf';
@@ -437,10 +461,9 @@ export default function Cashbox() {
                   className="input-field"
                   style={{ minHeight: '34px', padding: '0.375rem 0.5rem' }}
                 >
-                  <option value="other">{language === 'ru' ? 'Прочее' : 'Boshqa'}</option>
-                  <option value="capital">{language === 'ru' ? 'Капитал (Ввод/вывод средств)' : 'Kapital operatsiyalari'}</option>
-                  <option value="salary">{language === 'ru' ? 'Выдача зарплаты' : 'Oylik berish'}</option>
-                  <option value="tax">{language === 'ru' ? 'Налоги / Оплаты' : 'Soliq / Boj'}</option>
+                  {dynamicCategories.map(cat => (
+                    <option key={cat.key} value={cat.key}>{language === 'ru' ? cat.ru : cat.uz}</option>
+                  ))}
                 </select>
               </div>
 
@@ -527,13 +550,12 @@ export default function Cashbox() {
                   style={{ minHeight: '28px', padding: '0 0.375rem', fontSize: '0.75rem', width: '120px' }}
                 >
                   <option value="all">{language === 'ru' ? 'Все категории' : 'Barcha toifalar'}</option>
-                  <option value="capital">{language === 'ru' ? 'Капитал' : 'Kapital'}</option>
                   <option value="down_payment">{language === 'ru' ? 'Перв. взнос' : 'Boshlang\'ich to\'lov'}</option>
                   <option value="payment">{language === 'ru' ? 'Взнос по рассрочке' : 'Oylik to\'lov'}</option>
                   <option value="cost_price">{language === 'ru' ? 'Себестоимость' : 'Tannarx'}</option>
-                  <option value="salary">{language === 'ru' ? 'Зарплата' : 'Oylik'}</option>
-                  <option value="tax">{language === 'ru' ? 'Налоги' : 'Soliq'}</option>
-                  <option value="other">{language === 'ru' ? 'Прочее' : 'Boshqa'}</option>
+                  {dynamicCategories.map(cat => (
+                    <option key={cat.key} value={cat.key}>{language === 'ru' ? cat.ru : cat.uz}</option>
+                  ))}
                 </select>
 
                 <select

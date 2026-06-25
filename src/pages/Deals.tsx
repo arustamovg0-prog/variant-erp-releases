@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { useLanguage } from '@/lib/language';
 import {
   formatAmount,
-  formatAmountUZS,
+  formatAmountUZSWithRate,
   formatDate,
   calculateRemaining,
   calculateTotalAmount,
@@ -105,7 +105,7 @@ export default function Deals() {
                   </td>
                   <td style={{ color: 'var(--foreground-muted)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.product}</td>
                   <td style={{ fontWeight: 600, fontFamily: 'var(--font-heading)' }}>{formatAmount(deal.totalAmount)}</td>
-                  <td style={{ fontSize: '0.8125rem', color: 'var(--foreground-muted)' }}>{formatAmountUZS(deal.totalAmount)}</td>
+                  <td style={{ fontSize: '0.8125rem', color: 'var(--foreground-muted)' }}>{formatAmountUZSWithRate(deal.totalAmount, state.uzsRate)}</td>
                   <td>{deal.months} {language === 'ru' ? 'мес.' : 'oy'}</td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '120px' }}>
@@ -188,7 +188,7 @@ export default function Deals() {
 // ─── New Deal Form ──────────────────────────────────
 
 function NewDealForm({ agentId, onClose }: { agentId: string; onClose: () => void }) {
-  const { addDealToSupabase } = useApp();
+  const { state, addDealToSupabase } = useApp();
   const { t, language } = useLanguage();
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -485,11 +485,11 @@ function NewDealForm({ agentId, onClose }: { agentId: string; onClose: () => voi
                 {/* 1. Поручитель */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', marginBottom: '0.25rem' }}>
                   <div>
-                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>1. И.Ф.О Поручителя</span>
+                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>{language === 'ru' ? '1. И.Ф.О Поручителя' : '1. Kafilning F.I.Sh'}</span>
                     <strong style={{ fontSize: '0.95rem' }}>{createdDeal.referral?.name || '—'}</strong>
                   </div>
                   <div>
-                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Номер тел</span>
+                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>{language === 'ru' ? 'Номер тел' : 'Tel raqami'}</span>
                     <strong style={{ fontSize: '0.95rem' }}>{createdDeal.referral?.phone || '—'}</strong>
                   </div>
                 </div>
@@ -497,11 +497,11 @@ function NewDealForm({ agentId, onClose }: { agentId: string; onClose: () => voi
                 {/* 2. Клиент */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', marginBottom: '0.25rem' }}>
                   <div>
-                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>2. И.Ф.О Клиента</span>
+                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>{language === 'ru' ? '2. И.Ф.О Клиента' : '2. Mijozning F.I.Sh'}</span>
                     <strong style={{ fontSize: '0.95rem' }}>{createdDeal.client}</strong>
                   </div>
                   <div>
-                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Номер тел Клиента</span>
+                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>{language === 'ru' ? 'Номер тел Клиента' : 'Mijoz tel raqami'}</span>
                     <strong style={{ fontSize: '0.95rem' }}>{createdDeal.phone}</strong>
                   </div>
                 </div>
@@ -509,7 +509,7 @@ function NewDealForm({ agentId, onClose }: { agentId: string; onClose: () => voi
                 {/* 3. Товар */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', marginBottom: '0.25rem' }}>
                   <div>
-                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>3. Наименование товара</span>
+                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>{language === 'ru' ? '3. Наименование товара' : '3. Tovar nomi'}</span>
                     <strong style={{ fontSize: '0.95rem' }}>{createdDeal.product}</strong>
                   </div>
                 </div>
@@ -517,11 +517,11 @@ function NewDealForm({ agentId, onClose }: { agentId: string; onClose: () => voi
                 {/* 4 & 5. Себестоимость & Первый взнос */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', marginBottom: '0.25rem' }}>
                   <div>
-                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>4. Себестоимость товара</span>
+                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>{language === 'ru' ? '4. Себестоимость товара' : '4. Tovar tannarxi'}</span>
                     <strong style={{ fontSize: '0.95rem' }}>{createdDeal.costPrice ? `${createdDeal.costPrice}$` : '—'}</strong>
                   </div>
                   <div>
-                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>5. Первоначальный взнос</span>
+                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>{language === 'ru' ? '5. Первоначальный взнос' : '5. Boshlang\'ich to\'lov'}</span>
                     <strong style={{ fontSize: '0.95rem' }}>{createdDeal.downPayment ? `${createdDeal.downPayment}$` : '—'}</strong>
                   </div>
                 </div>
@@ -529,11 +529,11 @@ function NewDealForm({ agentId, onClose }: { agentId: string; onClose: () => voi
                 {/* 6 & 7. Срок & Остаток долга */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem', marginBottom: '0.25rem' }}>
                   <div>
-                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>6. Срок рассрочки</span>
+                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>{language === 'ru' ? '6. Срок рассрочки' : '6. Muddatli to\'lov muddati'}</span>
                     <strong style={{ fontSize: '0.95rem' }}>{createdDeal.months} {language === 'ru' ? 'месяцев' : 'oy'}</strong>
                   </div>
                   <div>
-                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>7. Остаток долга (с наценкой)</span>
+                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>{language === 'ru' ? '7. Остаток долга (с наценкой)' : '7. Qarz qoldig\'i (ustama bilan)'}</span>
                     <strong style={{ fontSize: '0.95rem', color: 'var(--primary)' }}>{createdDeal.totalAmount}$</strong>
                   </div>
                 </div>
@@ -541,7 +541,7 @@ function NewDealForm({ agentId, onClose }: { agentId: string; onClose: () => voi
                 {/* 8. Итого общая сумма */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', borderBottom: '2px solid var(--primary)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>
                   <div>
-                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>8. Итого общая сумма (с наценкой)</span>
+                    <span style={{ color: 'var(--foreground-muted)', display: 'block', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>{language === 'ru' ? '8. Итого общая сумма (с наценкой)' : '8. Jami summa (ustama bilan)'}</span>
                     <strong style={{ fontSize: '1.1rem', color: '#10b981' }}>{totalWithMarkup}$</strong>
                   </div>
                 </div>
@@ -550,11 +550,11 @@ function NewDealForm({ agentId, onClose }: { agentId: string; onClose: () => voi
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem', marginTop: '3.5rem' }}>
                 <div>
-                  <div style={{ marginBottom: '1.75rem', fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--foreground-muted)' }}>Подпись клиента</div>
+                  <div style={{ marginBottom: '1.75rem', fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--foreground-muted)' }}>{language === 'ru' ? 'Подпись клиента' : 'Mijoz imzosi'}</div>
                   <div style={{ borderBottom: '1.5px solid var(--border)', width: '100%' }}></div>
                 </div>
                 <div>
-                  <div style={{ marginBottom: '1.75rem', fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--foreground-muted)' }}>Подпись Агента</div>
+                  <div style={{ marginBottom: '1.75rem', fontSize: '0.8125rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--foreground-muted)' }}>{language === 'ru' ? 'Подпись Агента' : 'Agent imzosi'}</div>
                   <div style={{ borderBottom: '1.5px solid var(--border)', width: '100%' }}></div>
                 </div>
               </div>
@@ -619,19 +619,19 @@ function NewDealForm({ agentId, onClose }: { agentId: string; onClose: () => voi
                   <CalcRow label={language === 'ru' ? 'Первоначальный взнос' : 'Boshlang\'ich to\'lov'} value={formatAmount(downPaymentNum)} />
                   
                   <CalcRow label={language === 'ru' ? 'Остаток основного долга' : 'Asosiy qarz qoldig\'i'} value={formatAmount(financedAmount)} highlight />
-                  <CalcRow label={language === 'ru' ? 'Остаток осн. долга в UZS' : 'Asosiy qarz qoldig\'i UZSda'} value={formatAmountUZS(financedAmount)} />
+                  <CalcRow label={language === 'ru' ? 'Остаток осн. долга в UZS' : 'Asosiy qarz qoldig\'i UZSda'} value={formatAmountUZSWithRate(financedAmount, state.uzsRate)} />
                   
                   <CalcRow label={language === 'ru' ? 'Наценка' : 'Ustama'} value={formatAmount(markup)} />
                   <CalcRow label={language === 'ru' ? 'Переплата' : 'Ortiqcha to\'lov'} value={financedAmount > 0 ? `${((markup / financedAmount) * 100).toFixed(1)}%` : '0.0%'} />
                   
                   <CalcRow label={language === 'ru' ? 'Остаток платежа (с наценкой)' : 'To\'lov qoldig\'i (ustama bilan)'} value={formatAmount(installmentTotal)} highlight />
-                  <CalcRow label={language === 'ru' ? 'Остаток в UZS' : 'Qoldiq UZSda'} value={formatAmountUZS(installmentTotal)} />
+                  <CalcRow label={language === 'ru' ? 'Остаток в UZS' : 'Qoldiq UZSda'} value={formatAmountUZSWithRate(installmentTotal, state.uzsRate)} />
                   
                   <CalcRow label={language === 'ru' ? 'Общая сумма товара (с наценкой)' : 'Mahsulot jami summasi (ustama bilan)'} value={formatAmount(grandTotalWithMarkup)} highlight />
-                  <CalcRow label={language === 'ru' ? 'Общая сумма в UZS' : 'Jami summa UZSda'} value={formatAmountUZS(grandTotalWithMarkup)} />
+                  <CalcRow label={language === 'ru' ? 'Общая сумма в UZS' : 'Jami summa UZSda'} value={formatAmountUZSWithRate(grandTotalWithMarkup, state.uzsRate)} />
                   
                   <CalcRow label={t('deals.field_monthly')} value={formatAmount(monthlyPayment)} highlight />
-                  <CalcRow label={language === 'ru' ? 'В UZS/мес' : 'UZS/oyiga'} value={formatAmountUZS(monthlyPayment)} />
+                  <CalcRow label={language === 'ru' ? 'В UZS/мес' : 'UZS/oyiga'} value={formatAmountUZSWithRate(monthlyPayment, state.uzsRate)} />
                 </div>
               </div>
             )}

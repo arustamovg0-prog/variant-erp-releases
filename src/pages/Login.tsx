@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useLanguage } from '@/lib/language';
 import { Shield, LogIn, Eye, EyeOff, AlertCircle, UserPlus } from 'lucide-react';
+import { TrustLogo } from '@/components/shared/TrustLogo';
 
 type Mode = 'login' | 'signup';
 
@@ -85,16 +86,15 @@ export default function Login() {
       <div style={{ width: '100%', maxWidth: '420px', position: 'relative', zIndex: 1 }}>
         {/* Logo */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '2rem' }}>
-          <div
-            style={{
-              width: '56px', height: '56px', borderRadius: '14px',
-              background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              marginBottom: '1rem', boxShadow: '0 8px 32px rgba(59, 111, 160, 0.3)',
-            }}
-          >
-            <Shield size={28} color="#fff" />
-          </div>
+          <TrustLogo 
+            style={{ 
+              width: '56px', 
+              height: '56px', 
+              marginBottom: '1rem', 
+              boxShadow: '0 8px 32px rgba(59, 111, 160, 0.3)',
+              borderRadius: '10px'
+            }} 
+          />
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--foreground)', marginBottom: '0.25rem' }}>
             Trust-Network
           </h1>

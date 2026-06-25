@@ -1,6 +1,8 @@
 import { useAuth } from '@/lib/auth';
 import { useLanguage } from '@/lib/language';
 import { useTheme } from '@/lib/theme';
+import { useSync } from '@/lib/sync';
+import { TrustLogo } from '@/components/shared/TrustLogo';
 import {
   LayoutDashboard,
   CreditCard,
@@ -14,7 +16,12 @@ import {
   Sun,
   Moon,
   Wallet,
+  RefreshCw,
+  Cloud,
+  CloudOff,
+  AlertTriangle,
 } from 'lucide-react';
+
 
 interface SidebarProps {
   activeSection: string;
@@ -35,6 +42,7 @@ export default function Sidebar({ activeSection, onNavigate }: SidebarProps) {
   const { agent, logout } = useAuth();
   const { t, language, setLanguage } = useLanguage();
   const { theme, toggleTheme } = useTheme();
+  const { syncStatus, lastSynced, syncNow, isOnline } = useSync();
 
   return (
     <aside
@@ -51,9 +59,7 @@ export default function Sidebar({ activeSection, onNavigate }: SidebarProps) {
     >
       {/* Logo */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0 0.5rem', marginBottom: '2rem' }}>
-        <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Shield size={20} color="#fff" />
-        </div>
+        <TrustLogo style={{ width: '36px', height: '36px' }} />
         <div className="logo-text">
           <h1 style={{ fontSize: '1rem', fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--foreground)', lineHeight: 1.2 }}>
             Trust-Network
@@ -165,6 +171,108 @@ export default function Sidebar({ activeSection, onNavigate }: SidebarProps) {
           {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
         </button>
       </div>
+
+      {/* Sync Status Card */}
+      {agent && (
+        <div
+          style={{
+            margin: '0.5rem 0.5rem 1rem 0.5rem',
+            padding: '0.75rem',
+            borderRadius: '12px',
+            background: 'rgba(255, 255, 255, 0.02)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid var(--border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+          }}
+        >
+          <style>{`
+            @keyframes spin-slow {
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {isOnline ? (
+                syncStatus === 'syncing' ? (
+                  <RefreshCw size={14} style={{ color: 'var(--primary)', animation: 'spin-slow 1.5s linear infinite' }} />
+                ) : syncStatus === 'error' ? (
+                  <AlertTriangle size={14} style={{ color: '#f87171' }} />
+                ) : (
+                  <Cloud size={14} style={{ color: '#10b981' }} />
+                )
+              ) : (
+                <CloudOff size={14} style={{ color: 'var(--foreground-muted)' }} />
+              )}
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground)' }}>
+                {isOnline ? (
+                  syncStatus === 'syncing' ? (
+                    language === 'ru' ? 'Синхронизация...' : 'Sinxronizatsiya...'
+                  ) : syncStatus === 'error' ? (
+                    language === 'ru' ? 'Ошибка сети' : 'Tarmoq xatosi'
+                  ) : (
+                    language === 'ru' ? 'В сети' : 'Onlayn'
+                  )
+                ) : (
+                  language === 'ru' ? 'Вне сети' : 'Oflayn'
+                )}
+              </span>
+            </div>
+            
+            {/* Status dot */}
+            <div
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                background: !isOnline ? '#9ca3af' : syncStatus === 'syncing' ? '#f59e0b' : syncStatus === 'error' ? '#ef4444' : '#10b981',
+                boxShadow: !isOnline ? 'none' : `0 0 8px ${syncStatus === 'syncing' ? '#f59e0b' : syncStatus === 'error' ? '#ef4444' : '#10b981'}`,
+              }}
+            />
+          </div>
+          
+          {lastSynced && (
+            <span style={{ fontSize: '0.625rem', color: 'var(--foreground-muted)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {language === 'ru' ? `Синхр: ${lastSynced}` : `Sinx: ${lastSynced}`}
+            </span>
+          )}
+
+          {isOnline && syncStatus !== 'syncing' && (
+            <button
+              onClick={syncNow}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.375rem',
+                width: '100%',
+                padding: '0.375rem',
+                borderRadius: '6px',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid var(--border)',
+                color: 'var(--foreground)',
+                fontSize: '0.6875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.borderColor = 'var(--primary)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                e.currentTarget.style.borderColor = 'var(--border)';
+              }}
+            >
+              <RefreshCw size={10} />
+              {language === 'ru' ? 'Синхронизировать' : 'Sinxronlashtirish'}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Agent footer */}
       {agent && (
