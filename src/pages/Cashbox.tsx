@@ -55,6 +55,7 @@ export default function Cashbox() {
   const [txReason, setTxReason] = useState<string>('');
   const [txAgentId, setTxAgentId] = useState<string>(agent?.role === 'admin' ? 'admin' : agent?.id || '');
   const [isSubmittingTx, setIsSubmittingTx] = useState<boolean>(false);
+  const [txStatusMsg, setTxStatusMsg] = useState<{type: 'success' | 'error', text: string} | null>(null);
 
   // Load agents and dynamic categories
   useEffect(() => {
@@ -135,11 +136,11 @@ export default function Cashbox() {
     if (res.success) {
       setTxAmount('');
       setTxReason('');
-      alert(language === 'ru' ? 'Транзакция успешно записана!' : 'Tranzaksiya muvaffaqiyatli yozildi!');
-      setTimeout(() => { window.focus(); document.body.focus(); }, 50);
+      setTxStatusMsg({type: 'success', text: language === 'ru' ? 'Транзакция успешно записана!' : 'Tranzaksiya muvaffaqiyatli yozildi!'});
+      setTimeout(() => setTxStatusMsg(null), 3000);
     } else {
-      alert((language === 'ru' ? 'Ошибка: ' : 'Xato: ') + res.error);
-      setTimeout(() => { window.focus(); document.body.focus(); }, 50);
+      setTxStatusMsg({type: 'error', text: (language === 'ru' ? 'Ошибка: ' : 'Xato: ') + res.error});
+      setTimeout(() => setTxStatusMsg(null), 4000);
     }
   };
 
@@ -503,7 +504,23 @@ export default function Cashbox() {
                 />
               </div>
 
-              <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', marginTop: '0.25rem' }}>
+              <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+                <div style={{ flex: 1 }}>
+                  {txStatusMsg && (
+                    <div style={{ 
+                      padding: '0.5rem 0.75rem', 
+                      borderRadius: '6px', 
+                      fontSize: '0.8125rem',
+                      fontWeight: 500,
+                      background: txStatusMsg.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                      color: txStatusMsg.type === 'success' ? '#34d399' : '#f87171',
+                      border: `1px solid ${txStatusMsg.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+                      display: 'inline-block'
+                    }}>
+                      {txStatusMsg.text}
+                    </div>
+                  )}
+                </div>
                 <button
                   type="submit"
                   disabled={isSubmittingTx}
