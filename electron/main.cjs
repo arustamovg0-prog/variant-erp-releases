@@ -351,39 +351,34 @@ ipcMain.handle('export-csv', async (event, { filename, csvContent }) => {
 
 ipcMain.handle('get-all-agents', async () => {
   try {
-    const agents = await prisma.agent.findMany({
-      include: {
-        deals: {
-          include: { payments: true }
-        }
-      }
-    });
-    
-    // Вычисляем KPI для каждого
-    const stats = agents.map(agent => {
-      let totalPortfolio = 0;
-      let overdueAmount = 0;
-      
-      agent.deals.forEach(deal => {
-        totalPortfolio += deal.totalAmount;
-        deal.payments.forEach(p => {
-          if (p.status === 'overdue') {
-            overdueAmount += p.amount;
-          }
-        });
-      });
-      
-      return {
-        id: agent.id,
-        name: agent.name,
-        role: agent.role,
-        totalDeals: agent.deals.length,
-        totalPortfolio,
-        overdueAmount
-      };
-    });
+    const stats = await prisma.$queryRaw`
+      SELECT 
+        a.id, 
+        a.name, 
+        a.role,
+        COUNT(DISTINCT d.id) as "totalDeals",
+        COALESCE(SUM(d."totalAmount"), 0) as "totalPortfolio",
+        COALESCE((
+          SELECT SUM(p.amount) 
+          FROM "Payment" p 
+          JOIN "Deal" d2 ON p."dealId" = d2.id 
+          WHERE d2."agentId" = a.id AND p.status = 'overdue'
+        ), 0) as "overdueAmount"
+      FROM "Agent" a
+      LEFT JOIN "Deal" d ON a.id = d."agentId"
+      GROUP BY a.id, a.name, a.role
+    `;
 
-    return { success: true, data: stats };
+    const formattedStats = stats.map(s => ({
+      id: s.id,
+      name: s.name,
+      role: s.role,
+      totalDeals: Number(s.totalDeals),
+      totalPortfolio: Number(s.totalPortfolio),
+      overdueAmount: Number(s.overdueAmount)
+    }));
+
+    return { success: true, data: formattedStats };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -565,27 +560,17 @@ ipcMain.handle('create-cashbox-transaction', async (event, transactionData) => {
 
 ipcMain.handle('get-global-stats', async () => {
   try {
-    const deals = await prisma.deal.findMany({ include: { payments: true } });
-    
-    let totalPortfolio = 0;
-    let totalPaid = 0;
-    let totalOverdue = 0;
-
-    deals.forEach(deal => {
-      totalPortfolio += deal.totalAmount;
-      deal.payments.forEach(p => {
-        if (p.status === 'paid') totalPaid += p.amount;
-        if (p.status === 'overdue') totalOverdue += p.amount;
-      });
-    });
+    const [{ totalDeals, totalPortfolio }] = await prisma.$queryRaw`SELECT COUNT(id) as "totalDeals", COALESCE(SUM("totalAmount"), 0) as "totalPortfolio" FROM "Deal"`;
+    const [{ totalPaid }] = await prisma.$queryRaw`SELECT COALESCE(SUM(amount), 0) as "totalPaid" FROM "Payment" WHERE status = 'paid'`;
+    const [{ totalOverdue }] = await prisma.$queryRaw`SELECT COALESCE(SUM(amount), 0) as "totalOverdue" FROM "Payment" WHERE status = 'overdue'`;
 
     return { 
       success: true, 
       data: {
-        totalDeals: deals.length,
-        totalPortfolio,
-        totalPaid,
-        totalOverdue
+        totalDeals: Number(totalDeals),
+        totalPortfolio: Number(totalPortfolio),
+        totalPaid: Number(totalPaid),
+        totalOverdue: Number(totalOverdue)
       } 
     };
   } catch (error) {
