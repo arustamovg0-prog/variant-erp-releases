@@ -90,7 +90,8 @@ export default function Cashbox() {
   const handleSaveRate = async () => {
     const rateVal = parseInt(rateInput, 10);
     if (isNaN(rateVal) || rateVal <= 0) {
-      alert(language === 'ru' ? 'Введите корректный курс' : 'Kursor joriy qiymatini to\'g\'ri kiriting');
+      setTxStatusMsg({ type: 'error', text: language === 'ru' ? 'Введите корректный курс' : 'Kursor joriy qiymatini to\'g\'ri kiriting' });
+      setTimeout(() => setTxStatusMsg(null), 3000);
       return;
     }
     setIsSavingRate(true);
@@ -109,11 +110,13 @@ export default function Cashbox() {
     e.preventDefault();
     const amountVal = parseFloat(txAmount);
     if (isNaN(amountVal) || amountVal <= 0) {
-      alert(language === 'ru' ? 'Введите корректную сумму' : 'Haqiqiy summani kiriting');
+      setTxStatusMsg({ type: 'error', text: language === 'ru' ? 'Введите корректную сумму' : 'Haqiqiy summani kiriting' });
+      setTimeout(() => setTxStatusMsg(null), 3000);
       return;
     }
     if (!txReason.trim()) {
-      alert(language === 'ru' ? 'Введите описание транзакции' : 'Tranzaksiya tavsifini kiriting');
+      setTxStatusMsg({ type: 'error', text: language === 'ru' ? 'Введите описание транзакции' : 'Tranzaksiya tavsifini kiriting' });
+      setTimeout(() => setTxStatusMsg(null), 3000);
       return;
     }
 
@@ -144,20 +147,23 @@ export default function Cashbox() {
     }
   };
 
+  const [handoverConfirm, setHandoverConfirm] = useState<{ agentId: string; balance: number; agentName: string } | null>(null);
+
   // Agent balance handover
-  const handleHandover = async (targetAgentId: string, currentBalance: number) => {
+  const handleHandover = (targetAgentId: string, currentBalance: number) => {
     const agentName = agentsList.find(a => a.id === targetAgentId)?.name || 'Агент';
-    const confirmMsg = language === 'ru'
-      ? `Вы действительно принимаете кассу у ${agentName} на сумму ${formatAmount(currentBalance)}? Баланс агента обнулится.`
-      : `Haqiqatan ham ${agentName}dan ${formatAmount(currentBalance)} miqdorda kassa qabul qilasizmi? Agent balansi nolga tushadi.`;
+    setHandoverConfirm({ agentId: targetAgentId, balance: currentBalance, agentName });
+  };
 
-    if (!window.confirm(confirmMsg)) return;
-
+  const executeHandover = async () => {
+    if (!handoverConfirm) return;
+    const { agentId, balance, agentName } = handoverConfirm;
+    
     // Create expense for agent to zero out agent balance
     const zeroAgentTx = {
-      agentId: targetAgentId,
+      agentId: agentId,
       type: 'expense' as const,
-      amount: currentBalance,
+      amount: balance,
       category: 'other' as const,
       reason: language === 'ru' 
         ? `Сдача собранной кассы администратору` 
@@ -170,7 +176,7 @@ export default function Cashbox() {
     const adminVaultTx = {
       agentId: null, // Admin general vault
       type: 'income' as const,
-      amount: currentBalance,
+      amount: balance,
       category: 'capital' as const,
       reason: language === 'ru'
         ? `Прием наличных от агента ${agentName}`
@@ -182,8 +188,10 @@ export default function Cashbox() {
     const res1 = await addCashboxTransaction(zeroAgentTx);
     if (res1.success) {
       await addCashboxTransaction(adminVaultTx);
-      alert(language === 'ru' ? 'Касса успешно принята!' : 'Kassa muvaffaqiyatli topshirildi!');
+      setTxStatusMsg({ type: 'success', text: language === 'ru' ? 'Касса успешно принята!' : 'Kassa muvaffaqiyatli topshirildi!' });
+      setTimeout(() => setTxStatusMsg(null), 3000);
     }
+    setHandoverConfirm(null);
   };
 
   // Computations
@@ -745,6 +753,46 @@ export default function Cashbox() {
         )}
 
       </div>
+
+      {/* Handover Confirm Modal */}
+      {handoverConfirm && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className="glass-card" style={{ width: '100%', maxWidth: '400px', padding: '1.5rem', animation: 'scaleIn 0.2s ease-out' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--foreground)' }}>
+              {language === 'ru' ? 'Подтверждение' : 'Tasdiqlash'}
+            </h2>
+            <p style={{ fontSize: '0.875rem', marginBottom: '1.5rem', color: 'var(--foreground-muted)' }}>
+              {language === 'ru'
+                ? `Вы действительно принимаете кассу у ${handoverConfirm.agentName} на сумму ${formatAmount(handoverConfirm.balance)}? Баланс агента обнулится.`
+                : `Haqiqatan ham ${handoverConfirm.agentName}dan ${formatAmount(handoverConfirm.balance)} miqdorda kassa qabul qilasizmi? Agent balansi nolga tushadi.`
+              }
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setHandoverConfirm(null)}
+              >
+                {language === 'ru' ? 'Отмена' : 'Bekor qilish'}
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={executeHandover}
+              >
+                {language === 'ru' ? 'Да, принять' : 'Ha, qabul qilish'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

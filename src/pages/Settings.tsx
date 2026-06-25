@@ -32,6 +32,8 @@ export default function Settings() {
 
   const logConsoleRef = useRef<HTMLDivElement>(null);
 
+  const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
   if (!agent) return null;
 
   const handleExport = async () => {
@@ -40,13 +42,16 @@ export default function Settings() {
       if (window.api && window.api.exportDatabase) {
         const res = await window.api.exportDatabase(agent.name);
         if (res.success) {
-          alert(language === 'ru' ? 'База данных успешно выгружена! Отправьте этот файл администратору.' : 'Ma\'lumotlar bazasi muvaffaqiyatli yuklab olindi! Ushbu faylni administratorga yuboring.');
+          setStatusMsg({ type: 'success', text: language === 'ru' ? 'База данных успешно выгружена! Отправьте этот файл администратору.' : 'Ma\'lumotlar bazasi muvaffaqiyatli yuklab olindi! Ushbu faylni administratorga yuboring.' });
+          setTimeout(() => setStatusMsg(null), 4000);
         } else if (!res.canceled) {
-          alert((language === 'ru' ? 'Ошибка при выгрузке базы: ' : 'Bazani yuklashda xatolik yuz berdi: ') + res.error);
+          setStatusMsg({ type: 'error', text: (language === 'ru' ? 'Ошибка при выгрузке базы: ' : 'Bazani yuklashda xatolik yuz berdi: ') + res.error });
+          setTimeout(() => setStatusMsg(null), 4000);
         }
       }
     } catch (err: any) {
-      alert(err.message);
+      setStatusMsg({ type: 'error', text: err.message });
+      setTimeout(() => setStatusMsg(null), 4000);
     } finally {
       setExporting(false);
     }
@@ -55,9 +60,10 @@ export default function Settings() {
   // Support Session Toggle Handlers
   const handleStartSupport = async () => {
     if (!isOnline) {
-      alert(language === 'ru' 
+      setStatusMsg({ type: 'error', text: language === 'ru' 
         ? 'Для включения поддержки необходимо подключение к сети.' 
-        : 'Qo\'llab-quvvatlash rejimini yoqish uchun tarmoqqa ulanish zarur.');
+        : 'Qo\'llab-quvvatlash rejimini yoqish uchun tarmoqqa ulanish zarur.'});
+      setTimeout(() => setStatusMsg(null), 4000);
       return;
     }
 
