@@ -46,15 +46,15 @@ export default function AdminDashboard() {
   const loadData = async () => {
     setIsLoading(true);
     if (window.api && window.api.getGlobalStats) {
-      const statsRes = await window.api.getGlobalStats();
+      const [statsRes, agentsRes, settingsRes] = await Promise.all([
+        window.api.getGlobalStats(),
+        window.api.getAllAgents(),
+        window.api.getSettings ? window.api.getSettings() : Promise.resolve({ success: false })
+      ]);
+
       if (statsRes.success) setStats(statsRes.data);
-      
-      const agentsRes = await window.api.getAllAgents();
       if (agentsRes.success) setAgents(agentsRes.data);
-    }
-    // Load cashbox categories from settings
-    if (window.api && window.api.getSettings) {
-      const settingsRes = await window.api.getSettings();
+      
       if (settingsRes.success && settingsRes.data?.cashbox_categories) {
         try {
           const parsed = JSON.parse(settingsRes.data.cashbox_categories);

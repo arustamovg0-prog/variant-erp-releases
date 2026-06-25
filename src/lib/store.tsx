@@ -148,34 +148,40 @@ export function AppProvider({ children }: { children: ReactNode }) {
       let uzsRate = 12800; // default
 
       if (window.api) {
+        const promises = [];
         if (window.api.getDeals) {
-          const res = await window.api.getDeals(agent?.role === 'admin' ? null : agent?.id);
-          if (res.success && res.data) {
-            const rawDeals = res.data;
-            parsedDeals = rawDeals.map(mapDeal);
-            rawDeals.forEach((d: any) => {
-              if (d.payments) {
-                parsedPayments.push(...d.payments.map(mapPayment));
-              }
-            });
-          }
-        }
+          promises.push(window.api.getDeals(agent?.role === 'admin' ? null : agent?.id));
+        } else promises.push(Promise.resolve(null));
 
         if (window.api.getSettings) {
-          const res = await window.api.getSettings();
-          if (res.success && res.data && res.data.uzs_rate) {
-            uzsRate = Number(res.data.uzs_rate);
-          }
-        }
+          promises.push(window.api.getSettings());
+        } else promises.push(Promise.resolve(null));
 
         if (window.api.getCashboxTransactions) {
-          const res = await window.api.getCashboxTransactions(agent?.role === 'admin' ? null : agent?.id);
-          if (res.success && res.data) {
-            parsedTransactions = res.data.map((t: any) => ({
-              ...t,
-              amount: Number(t.amount)
-            }));
-          }
+          promises.push(window.api.getCashboxTransactions(agent?.role === 'admin' ? null : agent?.id));
+        } else promises.push(Promise.resolve(null));
+
+        const [dealsRes, settingsRes, cashboxRes] = await Promise.all(promises);
+
+        if (dealsRes && dealsRes.success && dealsRes.data) {
+          const rawDeals = dealsRes.data;
+          parsedDeals = rawDeals.map(mapDeal);
+          rawDeals.forEach((d: any) => {
+            if (d.payments) {
+              parsedPayments.push(...d.payments.map(mapPayment));
+            }
+          });
+        }
+
+        if (settingsRes && settingsRes.success && settingsRes.data && settingsRes.data.uzs_rate) {
+          uzsRate = Number(settingsRes.data.uzs_rate);
+        }
+
+        if (cashboxRes && cashboxRes.success && cashboxRes.data) {
+          parsedTransactions = cashboxRes.data.map((t: any) => ({
+            ...t,
+            amount: Number(t.amount)
+          }));
         }
       }
 
